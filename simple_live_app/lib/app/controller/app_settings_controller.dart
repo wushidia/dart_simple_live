@@ -264,6 +264,10 @@ class AppSettingsController extends GetxController {
       LocalStorageService.kPlayerGestureControlEnable,
       true,
     );
+    playerLandscapeRotationEnable.value = LocalStorageService.instance.getValue(
+      LocalStorageService.kPlayerLandscapeRotationEnable,
+      false,
+    );
     pipHideDanmu.value = _loadPipHideDanmu();
 
     styleColor.value = LocalStorageService.instance
@@ -2260,6 +2264,17 @@ class AppSettingsController extends GetxController {
     playerGestureControlEnable.value = value;
     LocalStorageService.instance.setValue(
       LocalStorageService.kPlayerGestureControlEnable,
+      value,
+    );
+  }
+
+  /// Allow fullscreen Android playback to follow the sensor between the two
+  /// landscape directions. Portrait orientations are never included.
+  var playerLandscapeRotationEnable = false.obs;
+  void setPlayerLandscapeRotationEnable(bool value) {
+    playerLandscapeRotationEnable.value = value;
+    LocalStorageService.instance.setValue(
+      LocalStorageService.kPlayerLandscapeRotationEnable,
       value,
     );
   }

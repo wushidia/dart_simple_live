@@ -1616,12 +1616,14 @@ class LiveRoomController extends PlayerController
       if (detail.value!.isRecord) {
         addSysMsg("当前主播未开播，正在转播录像");
       }
-      addSysMsg("正在连接弹幕服务器");
       if (!_isCurrentLoad(loadGeneration)) {
         return;
       }
-      initDanmau();
-      liveDanmaku.start(detail.value?.danmakuData);
+      if (detail.value?.danmakuData != null) {
+        addSysMsg("正在连接弹幕服务器");
+        initDanmau();
+        liveDanmaku.start(detail.value!.danmakuData);
+      }
       startLiveDurationTimer();
     } catch (e, stackTrace) {
       Log.logPrint(e);
@@ -3229,9 +3231,15 @@ class LiveRoomController extends PlayerController
       naviteUrl = "bilibili://live/${detail.value?.roomId}";
       webUrl = "https://live.bilibili.com/${detail.value?.roomId}";
     } else if (site.id == Constant.kDouyin) {
-      var args = detail.value?.danmakuData as DouyinDanmakuArgs;
-      naviteUrl = "snssdk1128://webcast_room?room_id=${args.roomId}";
-      webUrl = "https://live.douyin.com/${args.webRid}";
+      final args = detail.value?.danmakuData;
+      if (args is DouyinDanmakuArgs) {
+        naviteUrl = "snssdk1128://webcast_room?room_id=${args.roomId}";
+        webUrl = "https://live.douyin.com/${args.webRid}";
+      } else {
+        webUrl = detail.value?.url ?? '';
+        if (webUrl.isEmpty) return;
+        naviteUrl = webUrl;
+      }
     } else if (site.id == Constant.kHuya) {
       var args = detail.value?.danmakuData as HuyaDanmakuArgs;
       naviteUrl =

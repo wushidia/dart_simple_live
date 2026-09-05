@@ -74,6 +74,8 @@ class LocalStorageService extends GetxService {
   static const String kPlayerForceHttps = "PlayerForceHttps";
   static const String kPlayerGestureControlEnable =
       "PlayerGestureControlEnable";
+  static const String kPlayerLandscapeRotationEnable =
+      "PlayerLandscapeRotationEnable";
   static const String kAutoSwitchNextOnLiveEnd = "AutoSwitchNextOnLiveEnd";
   static const String kAutoSwitchNextOnPlaybackFailure =
       "AutoSwitchNextOnPlaybackFailure";

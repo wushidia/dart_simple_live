@@ -69,7 +69,12 @@ class AccountPage extends GetView<AccountController> {
               ),
               title: const Text("抖音直播"),
               subtitle: Text(controller.getDouyinCookieSummaryText()),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: controller.canUseDouyinWebLogin
+                  ? TextButton(
+                      onPressed: controller.douyinWebLogin,
+                      child: const Text("网页登录"),
+                    )
+                  : const Icon(Icons.chevron_right),
               onTap: controller.douyinTap,
             ),
           ),

@@ -17,6 +17,13 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "simple_live/douyin_desktop_webview",
+        ).setMethodCallHandler(DouyinDesktopWebView { viewId ->
+            flutterEngine.platformViewsController.getPlatformViewById(viewId)
+                ?: flutterEngine.platformViewsController2.getPlatformViewById(viewId)
+        })
         appWindowChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             APP_WINDOW_CHANNEL,

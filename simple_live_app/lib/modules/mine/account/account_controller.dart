@@ -120,6 +120,17 @@ class AccountController extends GetxController {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (canUseDouyinWebLogin)
+            ListTile(
+              leading: const Icon(Icons.account_circle_outlined),
+              title: const Text("网页登录"),
+              subtitle: const Text("在抖音网页扫码或验证码登录，自动保存 Cookie"),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Get.back();
+                douyinWebLogin();
+              },
+            ),
           if (!Platform.isAndroid && !Platform.isIOS)
             ListTile(
               leading: const Icon(Icons.open_in_browser),
@@ -188,6 +199,18 @@ class AccountController extends GetxController {
         ],
       ),
     );
+  }
+
+  bool get canUseDouyinWebLogin =>
+      Platform.isAndroid ||
+      Platform.isIOS ||
+      Platform.isMacOS ||
+      Platform.isWindows;
+
+  void douyinWebLogin() {
+    if (canUseDouyinWebLogin) {
+      Get.toNamed(RoutePath.kDouyinWebLogin);
+    }
   }
 
   Future<void> clearDouyinCookie() async {

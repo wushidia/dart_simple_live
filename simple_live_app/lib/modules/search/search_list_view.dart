@@ -22,7 +22,25 @@ class SearchListView extends StatelessWidget {
     if (userRowCount < 1) userRowCount = 1;
     return KeepAliveWrapper(
       child: Obx(
-        () => controller.searchMode.value == 0
+        () => controller.verificationRequired.value
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('抖音要求安全验证，暂时无法返回搜索结果'),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: controller.verifySearch,
+                      child: const Text('前往抖音验证'),
+                    ),
+                    TextButton(
+                      onPressed: controller.refreshData,
+                      child: const Text('已完成验证，重试搜索'),
+                    ),
+                  ],
+                ),
+              )
+            : controller.searchMode.value == 0
             ? LayoutBuilder(
                 builder: (context, constraints) {
                   final layout = LiveRoomGridLayout.resolve(

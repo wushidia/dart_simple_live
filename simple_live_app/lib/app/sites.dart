@@ -26,7 +26,7 @@ class Sites {
       id: Constant.kDouyin,
       logo: "assets/images/douyin.png",
       name: "抖音直播",
-      liveSite: DouyinSite(),
+      liveSite: DouyinSite(useLocalCategoryArtwork: false),
     ),
     Constant.kKuaishou: Site(
       id: Constant.kKuaishou,

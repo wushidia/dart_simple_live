@@ -6,7 +6,17 @@ import 'package:simple_live_core/src/common/convert_helper.dart';
 import 'package:simple_live_core/src/common/http_client.dart';
 import 'package:simple_live_core/src/scripts/douyin_sign.dart';
 
+class DouyinSearchVerificationRequired extends CoreError {
+  DouyinSearchVerificationRequired()
+    : super('抖音要求安全验证，请完成验证后重试搜索');
+}
+
 class DouyinSite implements LiveSite {
+  /// Only enable this in clients that bundle assets/images/douyin_games/.
+  final bool useLocalCategoryArtwork;
+
+  DouyinSite({this.useLocalCategoryArtwork = true});
+
   @override
   String id = "douyin";
 
@@ -173,10 +183,13 @@ class DouyinSite implements LiveSite {
         id: id,
         name: asT<String?>(item["partition"]["title"]) ?? "",
         pic:
-            DouyinGameArtwork.assetUriForCategory(
-              categoryId: id,
-              categoryName: asT<String?>(item["partition"]["title"]) ?? "",
-            ) ??
+            (useLocalCategoryArtwork
+                ? DouyinGameArtwork.assetUriForCategory(
+                    categoryId: id,
+                    categoryName:
+                        asT<String?>(item["partition"]["title"]) ?? "",
+                  )
+                : null) ??
             _pickPartitionImageUrl(item["partition"]),
       );
       subs.insert(
@@ -212,10 +225,12 @@ class DouyinSite implements LiveSite {
       // Attribution and non-commercial terms for local artwork are retained
       // centrally in DouyinGameArtwork and THANKS.md.
       pic:
-          DouyinGameArtwork.assetUriForCategory(
-            categoryId: id,
-            categoryName: name,
-          ) ??
+          (useLocalCategoryArtwork
+              ? DouyinGameArtwork.assetUriForCategory(
+                  categoryId: id,
+                  categoryName: name,
+                )
+              : null) ??
           _pickPartitionImageUrl(item["partition"]),
       children: children,
     );
@@ -227,7 +242,13 @@ class DouyinSite implements LiveSite {
     }
     if (data is String) {
       final value = data.trim();
-      return value.isEmpty ? null : value;
+      final url = value.startsWith('//') ? 'https:$value' : value;
+      final uri = Uri.tryParse(url);
+      return uri != null &&
+              (uri.scheme == 'http' || uri.scheme == 'https') &&
+              uri.host.isNotEmpty
+          ? url
+          : null;
     }
     if (data is List) {
       for (final item in data) {
@@ -552,6 +573,9 @@ class DouyinSite implements LiveSite {
   Future<LiveRoomDetail> getRoomDetail({required String roomId}) async {
     final stopwatch = Stopwatch()..start();
     try {
+      if (roomId.startsWith('user:')) {
+        return await _getRoomDetailByUser(roomId.substring(5));
+      }
       // 有两种roomId，一种是webRid，一种是roomId
       // roomId是一次性的，用户每次重新开播都会生成一个新的roomId
       // roomId一般长度为19位，例如：7376429659866598196
@@ -1310,30 +1334,206 @@ class DouyinSite implements LiveSite {
     String keyword, {
     int page = 1,
   }) async {
-    final result = await searchRooms(keyword, page: page);
-    final lowerKeyword = keyword.trim().toLowerCase();
-    final rooms = result.items.toList()
-      ..sort((a, b) {
-        final aMatched = a.userName.toLowerCase().contains(lowerKeyword);
-        final bMatched = b.userName.toLowerCase().contains(lowerKeyword);
-        if (aMatched != bMatched) {
-          return aMatched ? -1 : 1;
-        }
-        return b.online.compareTo(a.online);
-      });
-    return LiveSearchAnchorResult(
-      hasMore: result.hasMore,
-      items: rooms
-          .map(
-            (room) => LiveAnchorItem(
-              roomId: room.roomId,
-              userName: room.userName,
-              avatar: room.cover,
-              liveStatus: true,
-            ),
-          )
-          .toList(),
+    final serverUrl = "https://www.douyin.com/aweme/v1/web/discover/search/";
+    final uri = Uri.parse(serverUrl).replace(
+      queryParameters: {
+        "device_platform": "webapp",
+        "aid": "6383",
+        "channel": "channel_pc_web",
+        "search_channel": "aweme_user_web",
+        "keyword": keyword,
+        "search_source": "normal_search",
+        "query_correct_type": "1",
+        "is_filter_search": "0",
+        "from_group_id": "",
+        "offset": ((page - 1) * 10).toString(),
+        "count": "10",
+        "pc_client_type": "1",
+        "version_code": "190600",
+        "version_name": "19.6.0",
+        "cookie_enabled": "true",
+        "screen_width": "1980",
+        "screen_height": "1080",
+        "browser_language": "zh-CN",
+        "browser_platform": "Win32",
+        "browser_name": "Chrome",
+        "browser_version": "148.0.0.0",
+        "browser_online": "true",
+        "engine_name": "Blink",
+        "engine_version": "148.0.0.0",
+        "os_name": "Windows",
+        "os_version": "10",
+        "cpu_core_num": "12",
+        "device_memory": "8",
+        "platform": "PC",
+        "downlink": "10",
+        "effective_type": "4g",
+        "round_trip_time": "100",
+        "webid": "7382872326016435738",
+      },
     );
+    final result = await HttpClient.instance.getJson(
+      uri.toString(),
+      queryParameters: {},
+      header: _userRequestHeaders(
+        "https://www.douyin.com/search/${Uri.encodeComponent(keyword)}?type=user",
+      ),
+    );
+    if (result is! Map) {
+      throw Exception("抖音主播搜索被限制，请稍后再试");
+    }
+    final nilInfo = result['search_nil_info'];
+    final nilType = nilInfo is Map ? nilInfo['search_nil_type'] : null;
+    if (nilType == 'verify_check' || nilType == 'antispam_check') {
+      throw DouyinSearchVerificationRequired();
+    }
+    if (result["status_code"].toString() == '2483' ||
+        nilType == 'web_need_login') {
+      throw Exception("抖音搜索需要登录，请在账号管理中通过网页登录或手动配置完整抖音 Cookie");
+    }
+    if (result['status_code'] != null &&
+        result['status_code'].toString() != '0') {
+      throw Exception("抖音主播搜索被限制，请稍后再试");
+    }
+
+    final users = result["user_list"];
+    final items = <LiveAnchorItem>[];
+    if (users is List) {
+      for (final item in users) {
+        if (item is! Map || item["user_info"] is! Map) continue;
+        final user = item["user_info"] as Map;
+        final roomId = _userRoomId(user);
+        final nickname = user["nickname"]?.toString().trim() ?? "";
+        if (roomId.isEmpty || nickname.isEmpty) continue;
+        final avatar = _userAvatar(user);
+        items.add(
+          LiveAnchorItem(
+            roomId: roomId,
+            userName: nickname,
+            avatar: avatar,
+            liveStatus: _userIsLive(user),
+          ),
+        );
+      }
+    }
+
+    return LiveSearchAnchorResult(
+      hasMore: result["has_more"] == 1 || result["has_more"] == true,
+      items: items,
+    );
+  }
+
+  Map<String, dynamic> _userRequestHeaders(String referer) => {
+    'Authority': 'www.douyin.com',
+    'Accept': 'application/json, text/plain, */*',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    'cookie': _searchCookie(),
+    'Referer': referer,
+    'sec-ch-ua':
+        '"Google Chrome";v="148", "Chromium";v="148", "Not_A Brand";v="24"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+        '(KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36',
+  };
+
+  // A sec_uid identifies the user even when there is no current live room.
+  // Persist this reference for offline follows; never treat a uid as a web_rid.
+  String _userRoomId(Map user) {
+    final secUid = user['sec_uid']?.toString().trim() ?? '';
+    if (secUid.isNotEmpty) return 'user:$secUid';
+    final webRid = user['web_rid']?.toString().trim() ?? '';
+    if (webRid.isNotEmpty && webRid != '0') return webRid;
+    return _userLiveRoomId(user);
+  }
+
+  String _userLiveRoomId(Map user) {
+    final roomId = user["room_id_str"]?.toString().trim() ?? "";
+    if (roomId.isNotEmpty && roomId != "0") return roomId;
+    final numericRoomId = user["room_id"]?.toString().trim() ?? "";
+    if (numericRoomId.isNotEmpty && numericRoomId != "0") {
+      return numericRoomId;
+    }
+    return '';
+  }
+
+  Future<Map> _getUserProfile(String secUid) async {
+    if (secUid.isEmpty) throw CoreError('抖音主播标识为空');
+    final result = await HttpClient.instance.getJson(
+      'https://www.douyin.com/aweme/v1/web/user/profile/other/',
+      queryParameters: {
+        'device_platform': 'webapp',
+        'aid': '6383',
+        'channel': 'channel_pc_web',
+        'sec_user_id': secUid,
+        'source': 'web',
+        'personal_center_strategy': '1',
+        'profile_other_record_enable': '1',
+        'land_to': '1',
+      },
+      header: _userRequestHeaders(
+        'https://www.douyin.com/user/${Uri.encodeComponent(secUid)}',
+      ),
+    );
+    if (result is! Map ||
+        result['status_code'].toString() != '0' ||
+        result['user'] is! Map ||
+        (result['user'] as Map).isEmpty) {
+      throw CoreError('抖音主播信息获取失败，请稍后重试或检查抖音登录状态');
+    }
+    return result['user'] as Map;
+  }
+
+  Future<LiveRoomDetail> _getRoomDetailByUser(String secUid) async {
+    final user = await _getUserProfile(secUid);
+    final liveRoomId = _userLiveRoomId(user);
+    if (_userIsLive(user) && liveRoomId.isNotEmpty) {
+      return getRoomDetailByRoomId(liveRoomId);
+    }
+    return LiveRoomDetail(
+      roomId: 'user:$secUid',
+      title: '${user['nickname'] ?? ''}的直播间',
+      cover: _userAvatar(user),
+      userName: user['nickname']?.toString() ?? '',
+      userAvatar: _userAvatar(user),
+      online: 0,
+      status: false,
+      introduction: user['signature']?.toString() ?? '',
+      url: 'https://www.douyin.com/user/${Uri.encodeComponent(secUid)}',
+    );
+  }
+
+  String _userAvatar(Map user) {
+    final avatar = user["avatar_thumb"];
+    if (avatar is Map) {
+      final urls = avatar["url_list"];
+      if (urls is List && urls.isNotEmpty) return urls.first.toString();
+    }
+    return "";
+  }
+
+  bool _userIsLive(Map user) {
+    // The user API uses live_status=1, unlike room.status=2.
+    if (user['live_status'] != null) {
+      return user['live_status'].toString() == '1';
+    }
+    final roomData = user["room_data"];
+    if (roomData is Map) {
+      return _isDouyinLiveStatus(roomData);
+    }
+    if (roomData is String && roomData.trim().isNotEmpty) {
+      try {
+        final decoded = json.decode(roomData);
+        return decoded is Map && _isDouyinLiveStatus(decoded);
+      } catch (_) {
+        return false;
+      }
+    }
+    return _userLiveRoomId(user).isNotEmpty;
   }
 
   @override
@@ -1341,6 +1541,9 @@ class DouyinSite implements LiveSite {
     final targetId = roomId.trim();
     if (targetId.isEmpty) {
       return false;
+    }
+    if (targetId.startsWith('user:')) {
+      return _userIsLive(await _getUserProfile(targetId.substring(5)));
     }
     LiveRoomDetail? resolvedDetail;
     try {
@@ -1484,6 +1687,7 @@ class DouyinSite implements LiveSite {
     LiveRoomDetail? detail,
   }) async {
     final roomDetail = detail ?? await getRoomDetail(roomId: roomId);
+    if (!roomDetail.status) return [];
     final webRid = roomDetail.roomId.isNotEmpty ? roomDetail.roomId : roomId;
     final danmakuArgs = roomDetail.danmakuData is DouyinDanmakuArgs
         ? roomDetail.danmakuData as DouyinDanmakuArgs

@@ -1,4 +1,21 @@
 class DouyinCookieHelper {
+  /// A user ID or a CSRF/anonymous token alone is not a login session.
+  static bool hasLoginSession(String cookie) {
+    final value = extractCookieFromHeaderText(cookie) ?? cookie;
+    for (final part in value.split(';')) {
+      final separator = part.indexOf('=');
+      if (separator < 0) continue;
+      final name = part.substring(0, separator).trim();
+      final token = part.substring(separator + 1).trim();
+      if (const {'sessionid', 'sessionid_ss', 'sid_tt', 'sid_guard'}
+              .contains(name) &&
+          token.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   static bool hasCustomCookie(String cookie) {
     return cookie.trim().isNotEmpty;
   }

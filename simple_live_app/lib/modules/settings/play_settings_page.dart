@@ -128,6 +128,16 @@ class PlaySettingsPage extends GetView<AppSettingsController> {
                     },
                   ),
                 ),
+                if (Platform.isAndroid) AppStyle.divider,
+                if (Platform.isAndroid)
+                  Obx(
+                    () => SettingsSwitch(
+                      title: "允许播放器横屏旋转",
+                      subtitle: "仅在横屏左转和右转之间旋转，不会切换到竖屏",
+                      value: controller.playerLandscapeRotationEnable.value,
+                      onChanged: controller.setPlayerLandscapeRotationEnable,
+                    ),
+                  ),
                 AppStyle.divider,
                 Obx(
                   () => SettingsSwitch(

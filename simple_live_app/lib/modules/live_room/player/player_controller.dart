@@ -1007,12 +1007,28 @@ mixin PlayerSystemMixin on PlayerMixin, PlayerStateMixin, PlayerDanmakuMixin {
 
   /// 设置横屏
   Future setLandscapeOrientation() async {
+    final allowLandscapeRotation = !Platform.isAndroid ||
+        AppSettingsController.instance.playerLandscapeRotationEnable.value;
+    if (Platform.isAndroid) {
+      if (allowLandscapeRotation) {
+        // Force the sensor while keeping the activity in landscape, even when
+        // the device-wide auto-rotation setting is disabled.
+        await AutoOrientation.landscapeAutoMode(forceSensor: true);
+      } else {
+        await AutoOrientation.landscapeLeftMode();
+      }
+      return;
+    }
     if (await beforeIOS16()) {
-      AutoOrientation.landscapeAutoMode();
+      if (allowLandscapeRotation) {
+        await AutoOrientation.landscapeAutoMode();
+      } else {
+        await AutoOrientation.landscapeLeftMode();
+      }
     } else {
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
+        if (allowLandscapeRotation) DeviceOrientation.landscapeRight,
       ]);
     }
   }
