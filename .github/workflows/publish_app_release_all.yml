@@ -42,7 +42,7 @@ jobs:
             exit 1
           fi
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > simple_live_app/android/release-keystore.jks
-          printf 'storeFile=release-keystore.jks\nstorePassword=%s\nkeyPassword=%s\nkeyAlias=%s\n' "$STORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > simple_live_app/android/key.properties
+          printf 'storeFile=../release-keystore.jks\nstorePassword=%s\nkeyPassword=%s\nkeyAlias=%s\n' "$STORE_PASSWORD" "$KEY_PASSWORD" "$KEY_ALIAS" > simple_live_app/android/key.properties
       - uses: actions/setup-java@v4
         with:
           distribution: zulu
@@ -110,9 +110,7 @@ jobs:
           flutter config --enable-windows-desktop
           flutter pub get
           dart pub global activate flutter_distributor
-          # Git Bash does not add Pub Cache's bin directory to PATH.
-          export PATH="$(cygpath -u "$LOCALAPPDATA")/Pub/Cache/bin:$PATH"
-          flutter_distributor package --platform windows --targets zip --skip-clean
+          dart pub global run flutter_distributor:main package --platform windows --targets zip --skip-clean
           version="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
           mkdir -p build/release
           cp build/dist/*/*.zip "build/release/SimpleLive-Windows-v${version}.zip"
