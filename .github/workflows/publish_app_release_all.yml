@@ -110,6 +110,8 @@ jobs:
           flutter config --enable-windows-desktop
           flutter pub get
           dart pub global activate flutter_distributor
+          # Git Bash does not add Pub Cache's bin directory to PATH.
+          export PATH="$(cygpath -u "$LOCALAPPDATA")/Pub/Cache/bin:$PATH"
           flutter_distributor package --platform windows --targets zip --skip-clean
           version="$(sed -n 's/^version: \([^+]*\).*/\1/p' pubspec.yaml)"
           mkdir -p build/release
