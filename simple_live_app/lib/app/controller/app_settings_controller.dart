@@ -67,6 +67,7 @@ class AppSettingsController extends GetxController {
     LogicalKeyboardKey.keyN.keyId: "N",
     LogicalKeyboardKey.arrowUp.keyId: "上方向键",
     LogicalKeyboardKey.arrowDown.keyId: "下方向键",
+    LogicalKeyboardKey.space.keyId: "空格",
   };
 
   /// 缩放模式
@@ -581,6 +582,12 @@ class AppSettingsController extends GetxController {
       LocalStorageService.instance.getValue(
         LocalStorageService.kLiveRoomShortcutVolumeDown,
         LogicalKeyboardKey.arrowDown.keyId,
+      ),
+    );
+    liveRoomShortcutPlayPause.value = _normalizeLiveRoomShortcut(
+      LocalStorageService.instance.getValue(
+        LocalStorageService.kLiveRoomShortcutPlayPause,
+        LogicalKeyboardKey.space.keyId,
       ),
     );
   }
@@ -2005,6 +2012,7 @@ class AppSettingsController extends GetxController {
         liveRoomShortcutToggleChat: "收起/展开聊天区",
         liveRoomShortcutVolumeUp: "调高音量",
         liveRoomShortcutVolumeDown: "调低音量",
+        liveRoomShortcutPlayPause: "暂停/继续",
       };
 
   void _setLiveRoomShortcut({
@@ -2085,6 +2093,15 @@ class AppSettingsController extends GetxController {
       value: value,
       target: liveRoomShortcutVolumeDown,
       storageKey: LocalStorageService.kLiveRoomShortcutVolumeDown,
+    );
+  }
+
+  var liveRoomShortcutPlayPause = LogicalKeyboardKey.space.keyId.obs;
+  void setLiveRoomShortcutPlayPause(int value) {
+    _setLiveRoomShortcut(
+      value: value,
+      target: liveRoomShortcutPlayPause,
+      storageKey: LocalStorageService.kLiveRoomShortcutPlayPause,
     );
   }
 

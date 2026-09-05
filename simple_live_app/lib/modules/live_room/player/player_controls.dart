@@ -463,22 +463,24 @@ Widget _buildFullTopBar(
               ),
             ),
             AppStyle.hGap12,
-            IconButton(
-              onPressed: controller.saveScreenshot,
-              icon: const Icon(
-                Icons.camera_alt_outlined,
-                color: Colors.white,
-                size: 24,
+            if (!controller.smallWindowState.value)
+              IconButton(
+                onPressed: controller.saveScreenshot,
+                icon: const Icon(
+                  Icons.camera_alt_outlined,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
-            ),
-            IconButton(
-              onPressed: () => showQuickAccess(controller),
-              icon: const Icon(
-                Remix.play_list_2_line,
-                color: Colors.white,
-                size: 24,
+            if (!controller.smallWindowState.value)
+              IconButton(
+                onPressed: () => showQuickAccess(controller),
+                icon: const Icon(
+                  Remix.play_list_2_line,
+                  color: Colors.white,
+                  size: 24,
+                ),
               ),
-            ),
             if (Platform.isAndroid)
               IconButton(
                 onPressed: controller.enablePIP,
@@ -512,6 +514,7 @@ Widget _buildFullBottomBar(
     final visible = controller.showControlsState.value &&
         !controller.lockControlsState.value;
     final showDanmaku = controller.showDanmakuState.value;
+    final smallWindow = controller.smallWindowState.value;
 
     return AnimatedPositioned(
       left: 0,
@@ -530,17 +533,30 @@ Widget _buildFullBottomBar(
           ),
         ),
         padding: EdgeInsets.only(
-          left: padding.left + 12,
-          right: padding.right + 12,
+          left: padding.left + (smallWindow ? 4 : 12),
+          right: padding.right + (smallWindow ? 4 : 12),
           bottom: padding.bottom,
         ),
-        child: Row(
+        child: smallWindow
+            ? _buildSmallWindowBottomBar(controller, showDanmaku)
+            : Row(
           children: [
             IconButton(
               onPressed: controller.refreshRoom,
               icon: const Icon(
                 Remix.refresh_line,
                 color: Colors.white,
+              ),
+            ),
+            Obx(
+              () => IconButton(
+                onPressed: controller.togglePlayPauseWithRefresh,
+                icon: Icon(
+                  controller.playingState.value
+                      ? Icons.pause
+                      : Icons.play_arrow,
+                  color: Colors.white,
+                ),
               ),
             ),
             IconButton(
@@ -618,6 +634,15 @@ Widget _buildFullBottomBar(
                 style: const TextStyle(color: Colors.white, fontSize: 15),
               ),
             ),
+            if (!Platform.isAndroid && !Platform.isIOS)
+              IconButton(
+                onPressed: controller.enterSmallWindow,
+                icon: const Icon(
+                  Icons.picture_in_picture,
+                  color: Colors.white,
+                  size: 24,
+                ),
+              ),
             IconButton(
               onPressed: () {
                 if (controller.smallWindowState.value) {
@@ -636,6 +661,65 @@ Widget _buildFullBottomBar(
       ),
     );
   });
+}
+
+/// 小窗模式的紧凑底部栏：窗口太小，只保留常用按钮
+Widget _buildSmallWindowBottomBar(
+  LiveRoomController controller,
+  bool showDanmaku,
+) {
+  const compactDensity = VisualDensity.compact;
+  return Row(
+    children: [
+      IconButton(
+        onPressed: controller.togglePlayPauseWithRefresh,
+        visualDensity: compactDensity,
+        padding: const EdgeInsets.all(4),
+        icon: Icon(
+          controller.playingState.value ? Icons.pause : Icons.play_arrow,
+          color: Colors.white,
+          size: 20,
+        ),
+      ),
+      IconButton(
+        onPressed: () {
+          controller.setDanmakuVisible(!showDanmaku);
+        },
+        visualDensity: compactDensity,
+        padding: const EdgeInsets.all(4),
+        icon: ImageIcon(
+          AssetImage(
+            showDanmaku
+                ? 'assets/icons/icon_danmaku_close.png'
+                : 'assets/icons/icon_danmaku_open.png',
+          ),
+          size: 20,
+          color: Colors.white,
+        ),
+      ),
+      IconButton(
+        onPressed: controller.toggleMute,
+        visualDensity: compactDensity,
+        padding: const EdgeInsets.all(4),
+        icon: Icon(
+          controller.mutedState.value ? Icons.volume_off : Icons.volume_up,
+          color: Colors.white,
+          size: 20,
+        ),
+      ),
+      const Spacer(),
+      IconButton(
+        onPressed: controller.exitSmallWindow,
+        visualDensity: compactDensity,
+        padding: const EdgeInsets.all(4),
+        icon: const Icon(
+          Remix.fullscreen_exit_fill,
+          color: Colors.white,
+          size: 20,
+        ),
+      ),
+    ],
+  );
 }
 
 Widget _buildNormalBottomBar(
@@ -668,6 +752,17 @@ Widget _buildNormalBottomBar(
               icon: const Icon(
                 Remix.refresh_line,
                 color: Colors.white,
+              ),
+            ),
+            Obx(
+              () => IconButton(
+                onPressed: controller.togglePlayPauseWithRefresh,
+                icon: Icon(
+                  controller.playingState.value
+                      ? Icons.pause
+                      : Icons.play_arrow,
+                  color: Colors.white,
+                ),
               ),
             ),
             IconButton(
